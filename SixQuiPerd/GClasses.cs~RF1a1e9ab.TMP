@@ -1,0 +1,362 @@
+﻿using System;
+using System.Windows.Forms;
+using System.Drawing;
+
+namespace SixQuiPerd
+{
+    public class CTable
+    {
+        private Point p;
+        public CChaise[] chaises;
+        public int pays;
+
+        public void reset()
+        { foreach (CChaise ch in chaises) if (ch != null) ch.reset(); }
+
+        static public readonly int dTbCh = 61;
+
+        public CTable(Point pt, int pys)
+        {
+            p = pt;
+            pays = pys;
+            chaises = new CChaise[4];
+            chaises[0] = new CChaise(new Point { X = p.X, Y = p.Y - dTbCh }, this);
+            chaises[1] = new CChaise(new Point { X = p.X + dTbCh, Y = p.Y }, this);
+            chaises[2] = new CChaise(new Point { X = p.X, Y = p.Y + dTbCh }, this);
+            chaises[3] = new CChaise(new Point { X = p.X - dTbCh, Y = p.Y }, this);
+            reset();
+        }
+
+        static public void fusion(CTable ta, CTable tb)
+        {
+            if (ta != tb)
+            {
+                for (int a = 0; a < ta.chaises.Length; ++a)
+                    for (int b = 0; b < tb.chaises.Length; ++b)
+                        if(CChaise.fusion(ta.chaises[a],tb.chaises[b]))
+                            tb.chaises[b] = ta.chaises[a];
+            }
+        }
+    }
+
+    public class CChaise
+    {
+        private Point p;
+        public CTable[] tables;
+        public CPerso perso;
+
+        public void reset(){perso = null;}
+        public CChaise(Point pch, CTable tbl)
+        {
+            p = pch;
+            tables = new CTable[1];
+            tables[0] = tbl;
+            reset();
+        }
+
+        static private readonly int rayCh = 32;
+
+        static public bool fusion(CChaise ca, CChaise cb)
+        {
+            if ((Math.Abs(ca.p.X - cb.p.X) > rayCh) || (Math.Abs(ca.p.Y - cb.p.Y) > rayCh)) return false;
+            if(ca!=cb)
+            {
+                CTable[] tables = new CTable[ca.tables.Length + cb.tables.Length];
+                int i = 0;
+                foreach (CTable t in ca.tables) tables[i++] = t;
+                foreach (CTable t in cb.tables) tables[i++] = t;
+                ca.tables = tables;
+                cb.tables = tables;
+            }
+            return true;
+        }
+    }
+
+    public class CPerso
+    {
+        public int genre;
+        public int pays;
+
+        /*public int numTir=-1;
+        tatic private int nbTir = 0;
+        public void tir() { numTir = nbTir; ++nbTir; }
+        public void detir() { if (numTir == nbTir - 1) { numTir = -1; --nbTir; } }*/
+
+        public int imgNum{get { return 2* pays+ genre; }}
+    }
+
+    public class CUtilisateur
+    {
+        private CPerso[] main;
+
+        private Label lbscore;
+        private Label lbcartes;
+
+        private int score;
+        public int Score
+        {
+            get { return score; }
+
+            set
+            {
+                score = Score;
+                if (lbscore != null) lbscore.Text = score.ToString();
+            }
+        }
+
+        private void updateNbCartes()
+        {
+            if (lbcartes != null)
+            {
+                int nbCarte;
+                for (nbCarte = 0; nbCarte < main.Length && main[nbCarte] != null; ++nbCarte) ;
+                lbcartes.Text = nbCarte.ToString();
+            }
+        }
+
+        public bool ajoutCarte(CPerso p)
+        {
+            if(p!=null && main[main.Length-1]==null)
+            {
+                for(int i=0;i<main.Length;++i)
+                    if(main[i]==null)
+                    {
+                        main[i] = p;
+                        break;
+                    }
+                updateNbCartes();
+                return true;
+            }
+            return false;
+        }
+
+        public CPerso retirerCarte(int i)
+        {
+            CPerso res = null;
+            if(0<=i && i< main.Length && main[i]!=null)
+            {
+                res = main[i];
+                for(int u = i+1; u< main.Length;++i)main[u - 1] = main[u];
+                main[main.Length-1] = null;
+                updateNbCartes();
+            }
+            return res;
+        }
+
+        public void reset()
+        {
+            for (int i = 0; i < main.Length; ++i)
+                main[i] = null;
+            Score = 0;
+            if (lbcartes != null) lbcartes.Text = "0";
+        }
+
+        public CUtilisateur(Label lbscr, Label lbcrts)
+        {
+            lbscore = lbscr;
+            lbcartes = lbcrts;
+            main = new CPerso[5];
+            reset();
+        }
+    }
+
+    public class CPlateau
+    {
+        public int nbChLib;
+        public int nbChLibCur;
+        public CTable[] tables;
+
+        private int barId;
+        private CPerso barLstPerso;
+
+        static private readonly int[] pts = { 1, 2, 3, 4, 5, -2, -4, -6, -8, -10, -4, -6, -8, -10, -12, -6, -8, -10, -12, -14 };
+        public int barReste { get { return pts.Length - barId; } }
+
+        public void reset()
+        {
+            barId = 0;
+            barLstPerso = null;
+
+            foreach (CTable t in tables)t.reset();
+            nbChLibCur = nbChLib;
+        }
+
+        static public readonly string[] lstPays =
+        {
+            "Affrique",
+            "Italie",
+            "Chine",
+            "Espagne",
+            "Angleterre",
+            "Cuba",
+            "Russie",
+            "Turquie",
+            "France",
+            "Allemagne",
+            "Amérique",
+            "Inde",
+            "Jocker"
+        };
+
+        static public readonly Point startX = new Point(100,100);
+        static public readonly Point[] platConfig =
+        {
+            new Point(0,0),//Affrique
+            new Point(0,0),
+            new Point(0,0),//Italie
+            new Point(0,0),
+            new Point(0,0),//Chine
+            new Point(0,0),  
+            new Point(0,0),//Espagne
+            new Point(0,0),
+            new Point(0,0),//Angleterre
+            new Point(0,0),
+            new Point(0,0),//Cuba
+            new Point(0,0),
+            new Point(0,0),//Russie
+            new Point(0,0),
+            new Point(0,0),//Turquie
+            new Point(0,0),
+            new Point(0,0),//France
+            new Point(0,0),
+            new Point(0,0),//Allemagne
+            new Point(0,0),
+            new Point(0,0),//Amérique
+            new Point(0,0),
+            new Point(0,0),//Inde
+            new Point(0,0)
+        };
+
+
+        public CPlateau()
+        {
+            tables = new CTable[platConfig.Length];
+            for (int i = 0; i < tables.Length; ++i)
+                tables[i] = new CTable(new Point(startX.X + platConfig[i] .X * CTable.dTbCh, startX.Y + platConfig[i].Y * CTable.dTbCh), i/2);
+
+            foreach (CTable ta in tables)
+                foreach(CTable tb in tables)
+                    CTable.fusion(ta, tb);
+
+            nbChLib = 0;
+            foreach (CTable t in tables)
+                foreach (CChaise c in t.chaises)
+                    if (c.tables[0] == t) ++nbChLib;
+
+            reset();
+        }
+
+        public bool mettreAuBar(CUtilisateur us, CPerso prs)
+        {
+            if (barId >= pts.Length) return false;
+            us.Score += pts[barId];
+            barLstPerso = prs;
+            ++barId;
+            return true;
+        }
+
+        public CPerso retirerAuBar(CUtilisateur us)
+        {
+            CPerso res = barLstPerso;
+            if (barId > 0 && res!=null)
+            {
+                --barId;
+                us.Score -= pts[barId];
+                barLstPerso = null;
+            }
+            return res;
+        }
+    }
+
+    public class CPioche
+    {
+        private Label lbReste;
+
+        private int probaSum;
+        private int nbInco;
+
+        private int[] nbPerso;
+        private Random rand;
+
+        public int Reste { get { return probaSum + nbInco; } }
+
+        public void reset()
+        {
+            for (int i = 0; i < (nbPerso.Length - 2); ++i) nbPerso[i] = 4;
+            nbPerso[2 * (12 + 1) - 2] = 2;//2 jkr F
+            nbPerso[2 * (12 + 1) - 1] = 2;//2 jkr H
+            probaSum = 0;
+            nbInco = 0;
+            for (int i = 0; i < nbPerso.Length; ++i) probaSum += nbPerso[i];
+            if (lbReste != null) lbReste.Text = Reste.ToString();
+             rand = new Random();
+        }
+
+        public CPioche(Label lbr)
+        {
+            lbReste = lbr;
+            nbPerso = new int[2*(12+1)+1];//12 pays + jkr
+            reset();
+        }
+
+        public CPerso tirer()
+        {
+            if (probaSum == 0) return null;
+            int rnd = (int)(rand.NextDouble() * probaSum);
+            int psel = nbPerso.Length - 1;
+            for (int i = 0; i < nbPerso.Length; ++i)
+            {
+                rnd -= nbPerso[i];
+                if (rnd < 0)
+                {
+                    psel = i;
+                    break;
+                }
+            }
+            nbPerso[psel]--;
+            probaSum--;
+            return new CPerso() { genre = psel % 2, pays = psel/2 };
+        }
+
+        public bool retirer(CPerso pers)
+        {
+            if (pers != null)
+            {
+                if (pers.imgNum >= 0)
+                {
+                    if (nbPerso[pers.imgNum] > 0)
+                    {
+                        nbPerso[pers.imgNum]--;
+                        probaSum--;
+                        return true;
+                    }
+                }
+                else if (Reste > 0)
+                {
+                    nbInco--;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public bool remettre(CPerso pers)
+        {
+            if (pers != null)
+            {
+                if(pers.imgNum >= 0)
+                {
+                    probaSum++;
+                    nbPerso[pers.imgNum]++;
+                    return true;
+                }
+                else if(nbInco < 0)
+                {
+                    ++nbInco;
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+}
